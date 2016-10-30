@@ -1,0 +1,5 @@
+# Configuration file for holdem-poker-emulator
+# No more than 10 spaces or tabs is allowed
+# players should between 2 and 10
+ players  =  9
+ hands	=  100
