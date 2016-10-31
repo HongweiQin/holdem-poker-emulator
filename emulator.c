@@ -1,5 +1,5 @@
 #include "emulator.h"
-
+//#define FUNCTIONALTEST
 void printResult(struct hand *thishand);
 
 unsigned long long hands;
@@ -99,6 +99,7 @@ static inline void shuffleCards()
 void dealCardsToPlayers(struct hand *thishand)
 {
 	int i;
+	//TODO: should start from small blind.
 	for(i=0;i<players;i++)
 		thishand->players[i][0].card = dealACard();
 	for(i=0;i<players;i++)
@@ -380,6 +381,16 @@ inline void calculatePokerhand(struct hand *thishand,int p)
 				break;
 		}
 	}
+/*
+	printf("********\n");
+	printf("foknum=%d\n",foknum);
+	printf("thoknum=%d\n",thoknum);
+	printf("twoknum=%d,%d,%d\n",twoknum[0],twoknum[1],twoknum[2]);
+	printf("onum=%d,%d,%d,%d,%d\n",onum[0],onum[1],onum[2],onum[3],onum[4]);
+	printf("2p=%d\n",twopointer);
+	printf("1p=%d\n",onepointer);
+	printf("========\n");
+*/
 	if(foknum)//four of a kind
 	{
 		if(best < FOUROFAKIND)
@@ -439,9 +450,9 @@ inline void calculatePokerhand(struct hand *thishand,int p)
 				best=ONEPAIR;
 				//we need 4 sortnums
 				sortnum[ONEPAIR][0] = twoknum[0];
-				sortnum[TWOPAIR][1] = onum[0];
-				sortnum[TWOPAIR][2] = onum[1];
-				sortnum[TWOPAIR][3] = onum[2];
+				sortnum[ONEPAIR][1] = onum[0];
+				sortnum[ONEPAIR][2] = onum[1];
+				sortnum[ONEPAIR][3] = onum[2];
 			}
 		}
 	}
@@ -592,7 +603,7 @@ inline void printcard(struct card *pcard)
 
 void printResult(struct hand *thishand)
 {
-	int i;
+	int i,k;
 	printf("=========Results=========\n");
 	printf("Dealer:\n\tplayer%d\n",thishand->dealer);
 	printf("Community cards:\n\t");
@@ -611,20 +622,82 @@ void printResult(struct hand *thishand)
 			suitname[thishand->players[i][1].card/13],cardname[thishand->players[i][1].card % 13]);
 		printf("\tPokerhand:\n");
 		printf("\t\t%s\n",bestname[thishand->pPokerHand[i].name]);
+		printf("\tsortnum:\n\t\t");
+		for(k=0;k<5;k++)
+			printf("%d ",thishand->pPokerHand[i].sortnum[k]);
+		printf("\n");
 	}
 	printf("Winner%s:\n",(thishand->numberOfWinners>1)?"s are":" is");
-	for(i=0;i<thishand->numberOfWinners;i++) printf("\tplayer%d ",thishand->winners[i]);
+	for(i=0;i<thishand->numberOfWinners;i++)
+		printf("\tplayer%d ",thishand->winners[i]);
 	printf("\n");
 	
 }
 
+#ifdef FUNCTIONALTEST
+void functionaltest()
+{
+	char goon;
+	int i,k;
+	char ch;
+	char buf[30];
+	int num;
+	struct hand *thishand;
+	do
+	{
+		thishand = (struct hand *) malloc(sizeof(struct hand));
+		players = 2;
+		thishand->dealer = dealer = 0;
+		printf("2 players, dealer == player 0\n");
+		printf("input community cards\n");
+		for(i=0;i<5;i++)
+		{
+			ch=getchar();
+			scanf("%s",buf);
+			getchar();
+			num = atoi(buf);
+			if(ch=='S') num+=13*3;
+			else if(ch=='H') num+=13*2;
+			else if(ch=='D') num+=13;
+			thishand->community[i].card = num-2;
+		}
+		for(k=0;k<2;k++)
+		{
+			printf("input 2 cards of player %d\n",k);
+			for(i=0;i<2;i++)
+			{
+				ch=getchar();
+				scanf("%s",buf);
+				getchar();
+				num = atoi(buf);
+				if(ch=='S') num+=13*3;
+				else if(ch=='H') num+=13*2;
+				else if(ch=='D') num+=13;
+				thishand->players[k][i].card = num-2;
+			}
+		}
+		showdown(thishand);
+		printResult(thishand);
+		free(thishand);
+		printf("goon?\n");
+		goon = getchar();
+		getchar();
+	}while(goon=='y');
+	return;
+}
+#endif
 
 int main()
 {
 	struct hand *thishand = NULL,*lasthand=NULL,*p;
 	unsigned long long progress,mark;
 	srand((unsigned)time(NULL));
-	
+
+#ifdef FUNCTIONALTEST
+		functionaltest();
+		return 0;
+#endif
+
 	input();
 	hands = progress= *((unsigned long long *)config[CFG_HANDS].item);
 	players = *((int *)config[CFG_PLAYERS].item);
