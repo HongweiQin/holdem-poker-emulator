@@ -1,7 +1,47 @@
 #include "emulator.h"
 
+void printResult(struct hand *thishand);
+
 unsigned long long hands;
 int players;
+
+const char *bestname[]={
+	"",
+	"HIGHCARD",
+	"ONEPAIR",
+	"TWOPAIR",
+	"THREEOFAKIND",
+	"STRAIGHT",
+	"FLUSH",
+	"FULLHOUSE",
+	"FOUROFAKIND",
+	"STRAIGHTFLUSH",
+	"ROYALFLUSH",
+};
+
+const char *suitname[]={
+	"C",
+	"D",
+	"H",
+	"S",
+};
+
+const char *cardname[]={
+	"2", //0
+	"3",
+	"4",
+	"5",
+	"6",
+	"7",
+	"8",
+	"9",
+	"10",
+	"J",
+	"Q",
+	"K",
+	"A", //12
+};
+
 
 /*
 * random int in [1,n]
@@ -29,14 +69,23 @@ int randint(int n)
 int dealACard()
 {
 	int cardn,i;
-	cardn = randint(decknum) + 1;
+	cardn = randint(decknum);
+	//printf("cardn=%d\n",cardn);
+	/*for(i=0;i<52;i++) printf("%2d ",i);
+	printf("\n");
+	for(i=0;i<52;i++) printf("%2d ",deck[i]);
+	printf("\n");*/
 	for(i=0;cardn;i++)
 	{
+		//printf("i=%d ",i);
 		if(deck[i])
 			cardn--;
 	}
+	//printf("\n");
 	i--;
+	//printf("dealACard,card=%d\n",i);
 	deck[i] = 0;
+	decknum--;
 	return i;
 }
 static inline void shuffleCards()
@@ -54,13 +103,15 @@ void dealCardsToPlayers(struct hand *thishand)
 		thishand->players[i][0].card = dealACard();
 	for(i=0;i<players;i++)
 		thishand->players[i][1].card = dealACard();
+	//printf("dealcardsToPlayers\n");
 }
 
 
-void freehands(struct hand* thishand)
+void freehands(struct hand *thishand)
 {
 	if(!thishand) return;
 	freehands(thishand->next);
+	printResult(thishand);
 	free(thishand);
 	return;
 }
@@ -132,7 +183,7 @@ inline void categorySort(int buffer[7][3],int *dStart,int *hStart,int *sStart)
 	*dStart = i;
 	for(;i<7;i++) if(buffer[i][0]!=DIAMOND) break;
 	*hStart = i;
-	for(;i<7;i++) if(buffer[i][0]!=SPADE) break;
+	for(;i<7;i++) if(buffer[i][0]!=HEART) break;
 	*sStart = i;
 }
 
@@ -163,9 +214,9 @@ inline void calculatePokerhand(struct hand *thishand,int p)
 {
 	int buffer[8][3];
 	int dStart,hStart,sStart;
-	int isflush=0;
+	int isflush;
 	int start,end;
-	enum bestHand best=HIGHCARD;
+	enum bestHand best;
 	int type;
 	int i;
 	int high;
@@ -199,7 +250,10 @@ inline void calculatePokerhand(struct hand *thishand,int p)
 	origbuf(6) = thishand->community[4].card;
 	
 	categorySort(buffer,&dStart,&hStart,&sStart);//small to big
+	//printf("dStart=%d,hStart=%d,sStart=%d\n",dStart,hStart,sStart);
+	best=HIGHCARD;
 	//flush? straightflush? royalflush?
+	isflush=0;
 	if(dStart>4)
 	{
 		isflush = 1;
@@ -215,7 +269,7 @@ inline void calculatePokerhand(struct hand *thishand,int p)
 		isflush = 1;
 		type = HEART;
 	}
-	else if(7-hStart>4)
+	else if(7-sStart>4)
 	{
 		isflush = 1;
 		type = SPADE;
@@ -291,7 +345,8 @@ inline void calculatePokerhand(struct hand *thishand,int p)
 		{
 			//four of a kind
 			foknum = numbuf(i);
-			break;
+			// 4 is not a 3
+			if(thoknum == foknum) thoknum = 0;
 		}
 		switch(same)
 		{
@@ -330,7 +385,9 @@ inline void calculatePokerhand(struct hand *thishand,int p)
 		if(best < FOUROFAKIND)
 		{
 			best=FOUROFAKIND;
-			sortnum[FOUROFAKIND][0] = foknum;//we just need one
+			sortnum[FOUROFAKIND][0] = foknum;//we deed two
+			sortnum[FOUROFAKIND][1] = (twoknum[0]>onum[0])?(twoknum[0]):(onum[0]);
+			sortnum[FOUROFAKIND][1] = (thoknum>sortnum[FOUROFAKIND][1])?thoknum:(sortnum[FOUROFAKIND][1]);
 		}
 	}
 	else if(thoknum)
@@ -445,6 +502,7 @@ inline void calculatePokerhand(struct hand *thishand,int p)
 int comparePokerhand(struct hand *thishand,int p1,int p2)
 {
 	int look,i;
+	//printf("compareBetween %d and %d\n",p1,p2);
 	if(thishand->pPokerHand[p1].name > thishand->pPokerHand[p2].name)
 		return 1;
 	if(thishand->pPokerHand[p1].name < thishand->pPokerHand[p2].name)
@@ -457,7 +515,7 @@ int comparePokerhand(struct hand *thishand,int p1,int p2)
 			look = 1;
 			break;
 		case FOUROFAKIND:
-			look = 1;
+			look = 2;
 			break;
 		case FULLHOUSE:
 			look = 2;
@@ -495,15 +553,16 @@ int comparePokerhand(struct hand *thishand,int p1,int p2)
 void showdown(struct hand *thishand)
 {
 	int i;
-	int winner,numberOfWinners;
 	int ret;
+	//printf("ShowDown!\n");
 	for(i=0;i<players;i++)
 		calculatePokerhand(thishand,i);
 	thishand->numberOfWinners = 1;
 	thishand->winners[0] = 0;
+	//printf("calculatePokerhandFinished\n");
 	for(i=1;i<players;i++)
 	{
-		ret = comparePokerhand(thishand,i,winner);
+		ret = comparePokerhand(thishand,i,thishand->winners[0]);
 		if(ret==1)
 		{
 			thishand->winners[0] = i;
@@ -511,7 +570,7 @@ void showdown(struct hand *thishand)
 		}
 		else if(!ret)
 		{
-			thishand->winners[numberOfWinners] = i;
+			thishand->winners[thishand->numberOfWinners] = i;
 			thishand->numberOfWinners++;
 		}
 	}
@@ -524,20 +583,70 @@ void count(struct hand *thishand)
 
 }
 
+/*
+inline void printcard(struct card *pcard)
+{
+	printf("%s%s",
+			suitname[pcard->card/13],cardname[pcard->card % 13]);
+}*/
+
+void printResult(struct hand *thishand)
+{
+	int i;
+	printf("=========Results=========\n");
+	printf("Dealer:\n\tplayer%d\n",thishand->dealer);
+	printf("Community cards:\n\t");
+	for(i=0;i<5;i++)
+	{
+		printf("%s%s ",
+			suitname[thishand->community[i].card/13],cardname[thishand->community[i].card % 13]);
+	}
+	printf("\n");
+	for(i=0;i<players;i++)
+	{
+		printf("player%d:\n",i);
+		printf("\tPrivate cards:\n\t\t");
+		printf("%s%s %s%s\n",
+			suitname[thishand->players[i][0].card/13],cardname[thishand->players[i][0].card % 13],
+			suitname[thishand->players[i][1].card/13],cardname[thishand->players[i][1].card % 13]);
+		printf("\tPokerhand:\n");
+		printf("\t\t%s\n",bestname[thishand->pPokerHand[i].name]);
+	}
+	printf("Winner%s:\n",(thishand->numberOfWinners>1)?"s are":" is");
+	for(i=0;i<thishand->numberOfWinners;i++) printf("\tplayer%d ",thishand->winners[i]);
+	printf("\n");
+	
+}
+
+
 int main()
 {
-	struct hand *thishand = NULL,*lasthand;
+	struct hand *thishand = NULL,*lasthand=NULL,*p;
+	unsigned long long progress,mark;
+	srand((unsigned)time(NULL));
 	
 	input();
-	hands = *((unsigned long long *)config[CFG_HANDS].item);
+	hands = progress= *((unsigned long long *)config[CFG_HANDS].item);
 	players = *((int *)config[CFG_PLAYERS].item);
 	//Here we go
 	dealer=0;
-	while(hands--)
+	mark=hands/20;
+	while(progress--)
 	{
-		//TODO: perhaps we should add a progress bar here.
+		if(hands-progress > mark)//progress bar
+		{
+			mark += hands/20;
+			printf(".");
+		}
+		//printf("-------hands=%llu--------\n",hands);
 		shuffleCards();
+		//printf("shuffleDone\n");
 		thishand = (struct hand *) malloc(sizeof(struct hand));
+		if(!thishand)
+		{
+			printf("Not enough memory!\n");
+		}
+		//printf("AllocMemoryDone.\n");
 		thishand->next = lasthand;
 		thishand->dealer = dealer;
 		dealCardsToPlayers(thishand);
@@ -558,6 +667,7 @@ statistic:
 		nextDealer(players);
 		lasthand = thishand;
 	}
+	printf("\n");
 	freehands(thishand);
 	freememory();
 	return 0;
