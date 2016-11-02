@@ -4,6 +4,7 @@ void printResult(struct hand *thishand);
 
 unsigned long long hands;
 int players;
+struct stat statt;
 
 const char *bestname[]={
 	"",
@@ -96,6 +97,23 @@ static inline void shuffleCards()
 		deck[i]=1;
 }
 
+void sortPlayersCards(struct hand *thishand)
+{
+	int i;
+	int mid;
+	for(i=0;i<players;i++)
+	{
+		if(thishand->players[i][0].card % 13 > thishand->players[i][1].card % 13)
+		{
+			mid = thishand->players[i][0].card;
+			thishand->players[i][0].card = thishand->players[i][1].card;
+			thishand->players[i][1].card = mid;
+		}
+	}
+	return ;
+}
+
+
 void dealCardsToPlayers(struct hand *thishand)
 {
 	int i;
@@ -105,6 +123,7 @@ void dealCardsToPlayers(struct hand *thishand)
 	for(i=0;i<players;i++)
 		thishand->players[i][1].card = dealACard();
 	//printf("dealcardsToPlayers\n");
+	sortPlayersCards(thishand);
 }
 
 
@@ -585,13 +604,12 @@ void showdown(struct hand *thishand)
 			thishand->numberOfWinners++;
 		}
 	}
+	for(i=0;i<players;i++)
+		thishand->winboard[i]=0;
+	for(i=0;i<thishand->numberOfWinners;i++)
+		thishand->winboard[thishand->winners[i]] = 1;
 	//TODO: We should sort players here. Since pots may be more than 1!
 	return;
-}
-
-void count(struct hand *thishand)
-{
-
 }
 
 /*
@@ -701,6 +719,7 @@ int main()
 	input();
 	hands = progress= *((unsigned long long *)config[CFG_HANDS].item);
 	players = *((int *)config[CFG_PLAYERS].item);
+	statinit(&statt,players);
 	//Here we go
 	dealer=0;
 	mark=hands/20;
@@ -710,6 +729,7 @@ int main()
 		{
 			mark += hands/20;
 			printf(".");
+			sync();
 		}
 		//printf("-------hands=%llu--------\n",hands);
 		shuffleCards();
@@ -736,12 +756,15 @@ int main()
 			goto statistic;
 		showdown(thishand);
 statistic:
-		count(thishand);
+		do_stat(&statt,thishand);
+		//printResult(thishand);
 		nextDealer(players);
 		lasthand = thishand;
+		free(thishand);
 	}
 	printf("\n");
-	freehands(thishand);
+	//freehands(thishand);
+	printStat(&statt);
 	freememory();
 	return 0;
 }

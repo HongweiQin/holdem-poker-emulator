@@ -79,12 +79,25 @@ struct hand{
 	struct card community[5];
 	struct card flopburn,turnburn,riverburn;
 	struct card players[10][2];
+	int winboard[10];
 	struct pokerHand pPokerHand[10];
 	struct hand *next;
 };
+
+struct stat{
+	unsigned long long total;
+	int players;
+	unsigned long long sheet[13][13];
+	unsigned long long involve[13][13];
+};
+
 
 int randint(int n);
 void input(void);
 void freememory(void);
 int bet(struct hand *thishand,int which);
+void statinit(struct stat *stat,int players);
+void do_stat(struct stat *stat,struct hand *thishand);
+
+
 
