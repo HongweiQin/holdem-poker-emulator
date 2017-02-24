@@ -36,16 +36,23 @@ void statinit(struct stat *stat,int players,FILE **pfp)
 {
 	int i,k;
 	char buf[20];
-	sprintf(buf,"database%d\0",players);
-	*pfp = fopen(buf,"a");
-	if(!*pfp){
-		printf("can't open database file!");
-	}
+
 	stat->total = 0;
 	stat->players = players;
 	for(i=0;i<13;i++)
 		for(k=0;k<13;k++)
 			stat->involve[i][k] = stat->sheet[i][k] = 0;
+#ifdef NODATABASE
+//if we don't save every hand's information into our file based database, the emulation would go much faster
+	*pfp = NULL;
+	return;
+#endif
+
+	sprintf(buf,"database%d\0",players);
+	*pfp = fopen(buf,"a");
+	if(!*pfp){
+		printf("can't open database file!");
+	}
 }
 
 void do_stat(struct stat *stat,struct hand *thishand,FILE *fp)

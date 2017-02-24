@@ -3,6 +3,11 @@
 #include <string.h>
 #include <time.h>
 
+//if we don't save every hand's information into our file based database,
+//the emulation would go much faster
+//uncomment to disable file based database
+//#define NODATABASE
+
 
 #define CFGFILE "configurations/Config"
 #define CFG_ITEMS 2
