@@ -10,6 +10,23 @@
 #define CFG_PLAYERS 0
 #define CFG_HANDS 1
 
+#define DEFAULTSB 5
+#define DEFAULTBB 10
+
+#define S_ALLIN (1)
+#define S_RAISE (1 << 1)
+#define S_CALL (1 << 2)
+#define S_CHECK (1 << 3)
+#define S_FOLD (1 << 4)
+
+#define ISALLIN(x) ((x)&S_ALLIN)
+#define ISRAISE(x) ((x)&S_RAISE)
+#define ISCALL(x) ((x)&S_CALL)
+#define ISCHECK(x) ((x)&S_CHECK)
+#define ISFOLD(x) ((x)&S_FOLD)
+
+extern const char *bestname[];
+
 //default configurations
 #define DEF_PLAYERS 7
 #define DEF_HANDS 10
@@ -74,14 +91,25 @@ struct pokerHand{
 
 struct hand{
 	int dealer;
-	int numberOfWinners;
-	int winners[10];
+	//cards
 	struct card community[5];
 	struct card flopburn,turnburn,riverburn;
 	struct card players[10][2];
+	
+	struct pokerHand pPokerHand[10];//each players' poker hand
+
+	int numberOfWinners;
+	int winners[10];
 	int winboard[10];
-	struct pokerHand pPokerHand[10];
-	struct hand *next;
+
+	unsigned long SB;//SB num
+	unsigned long BB;//BB num
+	int online[10];//whether the player is online;
+	int potnum;
+	unsigned long potsum;
+	int allinstatus[10];//whether the player is already allin
+	//struct pot thePot[10];
+	
 };
 
 struct stat{
@@ -96,8 +124,8 @@ int randint(int n);
 void input(void);
 void freememory(void);
 int bet(struct hand *thishand,int which);
-void statinit(struct stat *stat,int players);
-void do_stat(struct stat *stat,struct hand *thishand);
+void statinit(struct stat *stat,int players,FILE **pfp);
+void do_stat(struct stat *stat,struct hand *thishand,FILE *fp);
 
 
 

@@ -6,7 +6,7 @@ checkfiles := $(buildfiles)
 checkfiles += emulator.h
 
 bin/emulator : $(checkfiles)
-	gcc -o bin/emulator $(buildfiles)
+	gcc -o emulator $(buildfiles)
 
 clean:
-	rm -f bin/emulator
+	rm -f emulator

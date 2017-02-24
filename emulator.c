@@ -89,6 +89,8 @@ int dealACard()
 	decknum--;
 	return i;
 }
+
+
 static inline void shuffleCards()
 {
 	int i;
@@ -96,6 +98,22 @@ static inline void shuffleCards()
 	for(i=0;i<52;i++)
 		deck[i]=1;
 }
+
+static inline void initThisHand(struct hand *thishand)
+{
+	int i;
+	shuffleCards();
+	thishand->potnum = 0;
+	thishand->dealer = dealer;
+	thishand->potsum = 0;
+	thishand->SB = DEFAULTSB;
+	thishand->BB = DEFAULTBB;
+	for(i=0;i<players;i++){
+		//thishand->allinStatus[i] = 0;
+		thishand->online[i]=1;
+	}
+}
+
 
 void sortPlayersCards(struct hand *thishand)
 {
@@ -117,16 +135,17 @@ void sortPlayersCards(struct hand *thishand)
 void dealCardsToPlayers(struct hand *thishand)
 {
 	int i;
+	int dealern = thishand->dealer;
 	//TODO: should start from small blind.
 	for(i=0;i<players;i++)
-		thishand->players[i][0].card = dealACard();
+		thishand->players[(dealern+i+1)%players][0].card = dealACard();
 	for(i=0;i<players;i++)
-		thishand->players[i][1].card = dealACard();
+		thishand->players[(dealern+i+1)%players][1].card = dealACard();
 	//printf("dealcardsToPlayers\n");
 	sortPlayersCards(thishand);
 }
 
-
+/*
 void freehands(struct hand *thishand)
 {
 	if(!thishand) return;
@@ -134,7 +153,7 @@ void freehands(struct hand *thishand)
 	printResult(thishand);
 	free(thishand);
 	return;
-}
+}*/
 
 void freememory()
 {
@@ -707,8 +726,9 @@ void functionaltest()
 
 int main()
 {
-	struct hand *thishand = NULL,*lasthand=NULL,*p;
+	struct hand *thishand = NULL;
 	unsigned long long progress,mark;
+	FILE *fp;
 	srand((unsigned)time(NULL));
 
 #ifdef FUNCTIONALTEST
@@ -719,29 +739,28 @@ int main()
 	input();
 	hands = progress= *((unsigned long long *)config[CFG_HANDS].item);
 	players = *((int *)config[CFG_PLAYERS].item);
-	statinit(&statt,players);
+	statinit(&statt,players,&fp);
 	//Here we go
 	dealer=0;
 	mark=hands/20;
+	thishand = (struct hand *) malloc(sizeof(struct hand));
+	if(!thishand)
+	{
+		printf("Not enough memory!\n");
+		return 0;
+	}
 	while(progress--)
 	{
 		if(hands-progress > mark)//progress bar
 		{
 			mark += hands/20;
 			printf(".");
-			sync();
+			fflush(stdout);
 		}
 		//printf("-------hands=%llu--------\n",hands);
-		shuffleCards();
+		initThisHand(thishand);
 		//printf("shuffleDone\n");
-		thishand = (struct hand *) malloc(sizeof(struct hand));
-		if(!thishand)
-		{
-			printf("Not enough memory!\n");
-		}
-		//printf("AllocMemoryDone.\n");
-		thishand->next = lasthand;
-		thishand->dealer = dealer;
+		
 		dealCardsToPlayers(thishand);
 		if(bet(thishand,PREFLOP_BET))
 			goto statistic;
@@ -756,16 +775,17 @@ int main()
 			goto statistic;
 		showdown(thishand);
 statistic:
-		do_stat(&statt,thishand);
-		//printResult(thishand);
+		do_stat(&statt,thishand,fp);
 		nextDealer(players);
-		lasthand = thishand;
-		free(thishand);
+		
 	}
+	free(thishand);
 	printf("\n");
 	//freehands(thishand);
 	printStat(&statt);
 	freememory();
+	if(fp)
+		fclose(fp);
 	return 0;
 }
 
